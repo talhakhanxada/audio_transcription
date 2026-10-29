@@ -1,0 +1,7 @@
+Django>=5.2,<5.3
+rq>=2.6,<3
+redis>=6,<7
+gunicorn>=23,<24
+faster-whisper==1.2.1
+# faster-whisper 1.2.1 passes metadata_errors, removed in newer PyAV versions.
+av==16.0.1

@@ -1,0 +1,50 @@
+x-app: &app
+  build: .
+  image: interview-transcription
+  environment:
+    REDIS_URL: redis://redis:6379/0
+    TRANSCRIPTION_BACKEND: ${TRANSCRIPTION_BACKEND:-whisper}
+    WHISPER_MODEL: ${WHISPER_MODEL:-tiny}
+    CHUNK_SECONDS: ${CHUNK_SECONDS:-300}
+    SECRET_KEY: ${SECRET_KEY:-local-assignment-only-change-for-deployment}
+    ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,[::1]}
+  volumes:
+    - app-data:/app/data
+    - model-cache:/app/models
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  migrate:
+    <<: *app
+    command: ["python", "manage.py", "migrate", "--noinput"]
+  web:
+    <<: *app
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+  worker:
+    <<: *app
+    command: ["python", "manage.py", "worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  app-data:
+  redis-data:
+  model-cache:
